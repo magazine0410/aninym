@@ -1,10 +1,10 @@
 # aninym
 
 *aninym* detects which visual novel is being played on Linux, whether it runs
-natively, through Wine, or through Proton. It does for visual novels what
-[Anisthesia](https://github.com/erengy/anisthesia) and
-[Anitomy](https://github.com/erengy/anitomy) do for anime episodes. It has no
-ties to any one application or database.
+natively, through Wine, or through Proton. Effectively, it does for visual novels what
+[**anisthesia**](https://github.com/erengy/anisthesia) and
+[**anitomy**](https://github.com/erengy/anitomy) do for anime episodes. However, 
+aninym itself has no relation to those projects.
 
 It works in two steps:
 
