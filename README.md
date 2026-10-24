@@ -70,7 +70,9 @@ current user's processes are read.
   - If that path doesn't lead to a file, aninym takes the `.exe` that the
     process has mapped into memory instead.
   - Programs in `C:\windows`, Wine's own programs, and Steam's helpers (such as
-    `steam.exe` and crash handlers) are left out.
+    `steam.exe` and crash handlers) are left out. Wine's own are told by where
+    they are, not by name, so a game's own `start.exe` or `cmd.exe` still
+    counts.
 - **Steam.** Steam starts every game under its `reaper` process.
   - A native game is a process below `reaper` whose executable is in
     `steamapps/common`. The Steam Linux Runtime and Proton's own programs don't

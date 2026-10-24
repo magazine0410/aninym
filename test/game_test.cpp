@@ -209,6 +209,27 @@ TEST(wineAndSteamProgramsAreNotGames) {
   CHECK(aninym::scan(system.options()).empty());
 }
 
+TEST(wineGameMayBeNamedLikeAWindowsProgram) {
+  const FakeSystem system;
+  const auto prefix = "WINEPREFIX=" + system.prefix().string();
+  const auto exe = system.file("Games/Other VN/start.exe");
+  // Wine's own start.exe, starting the game's.
+  system.add({200,
+              1,
+              "start.exe",
+              kPreloader,
+              {"C:\\windows\\system32\\start.exe", "/unix", exe.string()},
+              {prefix},
+              {"/usr/lib64/wine/x86_64-windows/start.exe"}});
+  system.add({201, 200, "start.exe", kPreloader, {exe.string()}, {prefix}, {exe.string()}});
+
+  const auto games = aninym::scan(system.options());
+  CHECK_EQ(games.size(), std::size_t{1});
+  if (games.empty()) return;
+  CHECK_EQ(games.front().processes, std::vector<int>{201});
+  CHECK_EQ(games.front().executable, exe);
+}
+
 TEST(protonGameHasItsSteamAppId) {
   const FakeSystem system;
   const auto library = system.root() / "Steam" / "steamapps";

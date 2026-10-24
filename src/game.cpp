@@ -130,26 +130,14 @@ bool isWineLibrary(const std::string_view path) {
   return false;
 }
 
-// Programs that come with Wine, Proton or Steam, or that run beside a game
-// without being it. Lowercase.
+// Programs that come with Steam, or that run beside a game without being it,
+// wherever they are, and the few of Wine's and Proton's that live outside
+// C:\windows. Lowercase. The rest of Wine's own are told by where they are
+// (`isSystemProgram`), as a game may call its own program start.exe or cmd.exe.
 bool isHelperProgram(const std::string& name) {
-  static constexpr std::array<std::string_view, 28> kNames{
-      "conhost.exe",
-      "explorer.exe",
+  static constexpr std::array<std::string_view, 12> kNames{
       "iexplore.exe",
-      "msiexec.exe",
-      "plugplay.exe",
-      "rpcss.exe",
-      "rundll32.exe",
-      "services.exe",
-      "start.exe",
-      "svchost.exe",
       "tabtip.exe",
-      "winedbg.exe",
-      "winedevice.exe",
-      "winemenubuilder.exe",
-      "wineboot.exe",
-      "winecfg.exe",
       "xalia.exe",
       "steam.exe",
       "steamwebhelper.exe",
@@ -160,8 +148,6 @@ bool isHelperProgram(const std::string& name) {
       "unitycrashhandler32.exe",
       "unitycrashhandler64.exe",
       "crashreportclient.exe",
-      "cmd.exe",
-      "wineconsole.exe",
   };
   const auto lower = utf8::lower(name);
   return std::ranges::find(kNames, lower) != kNames.end();
