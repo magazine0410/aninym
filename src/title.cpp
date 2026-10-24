@@ -2,6 +2,7 @@
 #include <aninym/title.hpp>
 #include <array>
 #include <regex>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -20,10 +21,48 @@ constexpr std::array<std::string_view, 64> kLatin1{
     "d", "n", "o", "o", "o", "o", "o",  "",  "o", "u", "u", "u", "u", "y", "th", "y",
 };
 
+// U+0100 to U+017F, Latin Extended-A (Č, Ł, Ő, Ş, Ž...), without their accents.
+// clang-format off
+constexpr std::array<std::string_view, 128> kLatinExtendedA{
+    "a", "a", "a",  "a",  "a", "a", "c", "c", "c", "c", "c", "c", "c", "c", "d", "d",  // U+0100
+    "d", "d", "e",  "e",  "e", "e", "e", "e", "e", "e", "e", "e", "g", "g", "g", "g",  // U+0110
+    "g", "g", "g",  "g",  "h", "h", "h", "h", "i", "i", "i", "i", "i", "i", "i", "i",  // U+0120
+    "i", "i", "ij", "ij", "j", "j", "k", "k", "k", "l", "l", "l", "l", "l", "l", "l",  // U+0130
+    "l", "l", "l",  "n",  "n", "n", "n", "n", "n", "n", "n", "n", "o", "o", "o", "o",  // U+0140
+    "o", "o", "oe", "oe", "r", "r", "r", "r", "r", "r", "s", "s", "s", "s", "s", "s",  // U+0150
+    "s", "s", "t",  "t",  "t", "t", "t", "t", "u", "u", "u", "u", "u", "u", "u", "u",  // U+0160
+    "u", "u", "u",  "u",  "w", "w", "y", "y", "y", "z", "z", "z", "z", "z", "z", "s",  // U+0170
+};
+// clang-format on
+
 // Ⅰ to Ⅻ, and ⅰ to ⅻ.
 constexpr std::array<std::string_view, 12> kRomanNumerals{
     "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii",
 };
+
+// The lowercase of a Greek or Cyrillic capital, or `c` itself.
+char32_t lowerGreekOrCyrillic(const char32_t c) {
+  if (c >= 0x0391 && c <= 0x03A9 && c != 0x03A2) return c + 0x20;  // Α to Ω
+  if (c == 0x03C2) return 0x03C3;                                  // final ς as σ
+  if (c == 0x0386) return 0x03AC;                                  // Ά
+  if (c >= 0x0388 && c <= 0x038A) return c + 0x25;                 // Έ Ή Ί
+  if (c == 0x038C) return 0x03CC;                                  // Ό
+  if (c == 0x038E || c == 0x038F) return c + 0x3F;                 // Ύ Ώ
+  if (c >= 0x0410 && c <= 0x042F) return c + 0x20;                 // А to Я
+  if (c >= 0x0400 && c <= 0x040F) return c + 0x50;                 // Ѐ to Џ
+  return c;
+}
+
+// The number a superscript or circled digit stands for, or -1. Kept, so that
+// "Title②" isn't "Title①".
+int digitValue(const char32_t c) {
+  if (c == 0x00B9) return 1;                                                // ¹
+  if (c == 0x00B2 || c == 0x00B3) return static_cast<int>(c) - 0x00B0;      // ² ³
+  if (c == 0x2070) return 0;                                                // ⁰
+  if (c >= 0x2074 && c <= 0x2079) return static_cast<int>(c) - 0x2070;      // ⁴ to ⁹
+  if (c >= 0x2460 && c <= 0x2473) return static_cast<int>(c) - 0x2460 + 1;  // ① to ⑳
+  return -1;
+}
 
 bool isDropped(const char32_t c) {
   // Kept from the CJK punctuation block: the iteration marks 々 and 〆, and 〇,
@@ -38,6 +77,7 @@ bool isDropped(const char32_t c) {
          c == 0x30FB ||                   // katakana middle dot
          (c >= 0xE000 && c <= 0xF8FF) ||  // private use
          (c >= 0xFE00 && c <= 0xFE6F) ||  // variation selectors, small forms
+         c == 0xFEFF ||                   // zero-width no-break space
          c == 0xFF00 || (c >= 0xFF5F && c <= 0xFF65) || (c >= 0xFFE0 && c <= 0xFFFF) ||
          (c >= 0x1F000 && c <= 0x1FAFF);  // emoji and other pictographs
 }
@@ -52,41 +92,25 @@ void appendFolded(std::string& out, char32_t c) {
       out.push_back(ascii);
     } else if (ascii >= 'A' && ascii <= 'Z') {
       out.push_back(utf8::lower(ascii));
+    } else if (ascii == '+') {
+      // Part of a name often enough, as in a fandisc's "X+", to tell it from X.
+      out += "plus";
     }
+    return;
+  }
+  if (const int digit = digitValue(c); digit >= 0) {
+    out += std::to_string(digit);
     return;
   }
   if (c >= 0x00C0 && c <= 0x00FF) {
     out += kLatin1[c - 0x00C0];
     return;
   }
-  switch (c) {
-    case 0x0100:
-    case 0x0101:
-      out += 'a';
-      return;  // Ā ā
-    case 0x0112:
-    case 0x0113:
-      out += 'e';
-      return;  // Ē ē
-    case 0x012A:
-    case 0x012B:
-      out += 'i';
-      return;  // Ī ī
-    case 0x014C:
-    case 0x014D:
-      out += 'o';
-      return;  // Ō ō
-    case 0x016A:
-    case 0x016B:
-      out += 'u';
-      return;  // Ū ū
-    case 0x0152:
-    case 0x0153:
-      out += "oe";
-      return;  // Œ œ
-    default:
-      break;
+  if (c >= 0x0100 && c <= 0x017F) {
+    out += kLatinExtendedA[c - 0x0100];
+    return;
   }
+  c = lowerGreekOrCyrillic(c);
   if (c >= 0x2160 && c <= 0x216B) {
     out += kRomanNumerals[c - 0x2160];
     return;
@@ -320,7 +344,9 @@ std::string normalize(const std::string_view text) {
 }
 
 std::string clean_window_title(const std::string_view title) {
-  std::string text = utf8::trim(title);
+  // One space for each run of them, which also keeps the patterns below from
+  // retrying at every space of a long run, in time that grows with its square.
+  std::string text = collapseSpaces(title);
 
   // A leading tag, as in "[Demo] Title" or "【体験版】Title".
   for (;;) {

@@ -154,3 +154,21 @@ TEST(rankPutsTheClosestFirst) {
   CHECK(matcher.rank("zzzz").empty());
   CHECK(matcher.rank("Steins", 1).size() == 1);
 }
+
+TEST(titleKeepsWhatOnlyLooksLikeAVersion) {
+  Matcher matcher;
+  matcher.add_title("Danganronpa", "v7014");
+  matcher.add_title("Danganronpa V3", "v16280");
+  CHECK_EQ(id(matcher.match_title("Danganronpa V3")), std::string{"v16280"});
+  CHECK_EQ(id(matcher.match_title("Danganronpa V3 - Chapter 1")), std::string{"v16280"});
+  // A version after the title still goes.
+  CHECK_EQ(id(matcher.match_title("Danganronpa ver.1.02")), std::string{"v7014"});
+}
+
+TEST(aWideCharacterCountsAsTwoLetters) {
+  Matcher matcher;
+  matcher.add_title("月", "v1");
+  matcher.add_title("月姫", "v7");
+  CHECK_EQ(id(matcher.match_title("Settings - 月")), std::string{"none"});
+  CHECK_EQ(id(matcher.match_title("月姫 - 体験版")), std::string{"v7"});
+}

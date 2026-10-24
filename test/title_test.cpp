@@ -64,3 +64,23 @@ TEST(folderNameKeepsTheTitle) {
   // Never down to nothing.
   CHECK_EQ(clean_folder_name("English"), std::string{"English"});
 }
+
+TEST(normalizeFoldsGreekCyrillicAndCentralEuropeanLetters) {
+  CHECK_EQ(normalize("ΚΑΝΟΝ"), normalize("κανον"));
+  CHECK_EQ(normalize("ЛЕТО"), normalize("лето"));
+  CHECK_EQ(normalize("Čarodějka Łódź Ő"), std::string{"carodejkalodzo"});
+}
+
+TEST(normalizeTellsNumberedAndPlusTitlesApart) {
+  CHECK(normalize("Kanon+") != normalize("Kanon"));
+  CHECK(normalize("Title①") != normalize("Title②"));
+  CHECK_EQ(normalize("Title②"), normalize("Title 2"));
+  CHECK_EQ(normalize("Love²"), normalize("Love 2"));
+  // A zero-width no-break space, as text pasted from elsewhere can carry.
+  CHECK_EQ(normalize("Saya\xEF\xBB\xBFno Uta"), normalize("Saya no Uta"));
+}
+
+TEST(windowTitleWithLongRunsOfSpacesIsQuick) {
+  const auto title = "Saya" + std::string(20000, ' ') + "no Uta" + std::string(20000, ' ') + "x";
+  CHECK_EQ(clean_window_title(title), std::string{"Saya no Uta x"});
+}

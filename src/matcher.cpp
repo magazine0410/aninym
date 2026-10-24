@@ -15,8 +15,23 @@ namespace fs = std::filesystem;
 namespace {
 
 // A part of a title shorter than this is too likely to be a word that only
-// happens to be a title too.
+// happens to be a title too. Measured by `width`.
 constexpr std::size_t kMinimumPartLength = 3;
+
+// How long normalized text is, in characters, a wide one (CJK, kana, hangul)
+// counting as two, as it says about as much as two Latin letters do: "月"
+// is too short to match on its own, and "月姫" is not.
+std::size_t width(const std::string& normalized) {
+  std::size_t total = 0;
+  for (const char32_t c : utf8::decode(normalized)) {
+    const bool wide = (c >= 0x1100 && c <= 0x115F) || (c >= 0x2E80 && c <= 0xA4CF) ||
+                      (c >= 0xAC00 && c <= 0xD7A3) || (c >= 0xF900 && c <= 0xFAFF) ||
+                      (c >= 0xFE30 && c <= 0xFE4F) || (c >= 0xFF00 && c <= 0xFF60) ||
+                      (c >= 0xFFE0 && c <= 0xFFE6) || (c >= 0x20000 && c <= 0x3FFFD);
+    total += wide ? 2 : 1;
+  }
+  return total;
+}
 
 std::string pathKey(const fs::path& path) {
   std::error_code error;
@@ -67,7 +82,7 @@ double similarity(const std::string& a, const std::set<std::u32string>& aPairs,
   // doesn't, is closer than the shared pairs alone say.
   const auto& shorter = a.size() < b.size() ? a : b;
   const auto& longer = a.size() < b.size() ? b : a;
-  if (shorter.size() >= kMinimumPartLength && longer.find(shorter) != std::string::npos) {
+  if (width(shorter) >= kMinimumPartLength && longer.find(shorter) != std::string::npos) {
     const double ratio = static_cast<double>(shorter.size()) / static_cast<double>(longer.size());
     score = std::max(score, 0.6 + 0.4 * ratio);
   }
@@ -168,7 +183,7 @@ std::optional<std::string> Matcher::find_title(const std::string& cleaned) const
   const auto parts = titleParts(cleaned);
   for (std::size_t i = 0; i < parts.size(); ++i) {
     const auto key = normalize(parts[i]);
-    if (key.empty() || (i > 0 && key.size() < kMinimumPartLength)) continue;
+    if (key.empty() || (i > 0 && width(key) < kMinimumPartLength)) continue;
     if (const auto it = titles_.find(key); it != titles_.end()) return it->second.front();
   }
   return std::nullopt;
@@ -176,6 +191,9 @@ std::optional<std::string> Matcher::find_title(const std::string& cleaned) const
 
 std::optional<std::string> Matcher::match_title(const std::string_view text) const {
   if (text.empty()) return std::nullopt;
+  // As it is first: what looks like a version can be part of the name, as in
+  // "Danganronpa V3", which cleaning would cut down to another title.
+  if (auto id = find_title(utf8::trim(text))) return id;
   return find_title(clean_window_title(text));
 }
 

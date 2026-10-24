@@ -108,16 +108,20 @@ it.
 ## How titles are matched
 
 Titles are compared after `normalize()`:
-- case, spaces, punctuation and symbols are ignored;
-- full-width ASCII becomes ASCII;
-- accented Latin letters lose their accents.
+- spaces, punctuation and symbols are ignored, apart from `+`, which reads as
+  "plus", so that "X+" isn't "X";
+- case is ignored, in Latin, Greek and Cyrillic letters;
+- full-width ASCII becomes ASCII, and superscript and circled digits (`²`,
+  `②`) the digits they are;
+- Latin letters lose their accents, as far as Latin Extended-A (`Č`, `Ł`, `Ő`).
 
 For example, "STEINS;GATE" equals "Steins Gate". Japanese text is compared as
 it is, apart from punctuation.
 
-**Window titles** first lose a leading `[Demo]`-style tag and any trailing
-version numbers, build numbers or frame rates. Then the following are tried, in
-order:
+**Window titles** are tried as they are, and then again once they have lost a
+leading `[Demo]`-style tag and any trailing version numbers, build numbers or
+frame rates, so that a title such as "Danganronpa V3" keeps its "V3". Each time,
+the following are tried, in order:
 1. the whole title;
 2. the part before each separator (`-`, `|`, `~`, `:` or an opening bracket),
    longest first;
@@ -125,7 +129,7 @@ order:
 
 For example, "Fate/stay night [Réalta Nua] -Ultimate Edition-" matches
 "Fate/stay night". A part shorter than three characters never matches on its
-own.
+own; a CJK character counts as two, so "月" alone doesn't, and "月姫" does.
 
 **Folder names** first lose bracketed tags such as `[Circle]`, `(v1.02)` and
 `【DL版】`. Underscores, or dots when the name has no spaces, are read as
