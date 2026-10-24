@@ -22,7 +22,8 @@ struct Game {
 
   Runtime runtime = Runtime::Native;
 
-  // The Unix path of the program, the .exe itself for a Wine game.
+  // The Unix path of the program, the .exe itself for a Wine game. Of a game
+  // with several processes, the program of the first, the one with a window.
   std::filesystem::path executable;
 
   // The program's path as Wine reports it, e.g. "C:\Games\Saya\saya.exe".

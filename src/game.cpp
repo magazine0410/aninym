@@ -440,6 +440,9 @@ std::vector<Game> scan(const ScanOptions& options) {
 
   std::vector<Game> games;
   std::map<std::string, std::size_t> groups;
+  // What each process runs, for a game to take its program from the process
+  // with the window once the windows are known.
+  std::map<int, Game> programs;
   for (const auto& [pid, process] : processes) {
     const auto dir = options.proc / std::to_string(pid);
     const auto exeName = process.exe.filename().string();
@@ -455,6 +458,7 @@ std::vector<Game> scan(const ScanOptions& options) {
       candidate = nativeGame(dir, process, *linked, false);
     }
     if (!candidate) continue;
+    programs.emplace(candidate->pid, candidate->game);
 
     const auto key = groupKey(candidate->game);
     if (const auto group = groups.find(key); group != groups.end()) {
@@ -477,6 +481,15 @@ std::vector<Game> scan(const ScanOptions& options) {
 
   if (options.window_titles) {
     attachWindows(games, options.list_windows ? options.list_windows() : x11_windows());
+    // A launcher can stay open beside the game it started. The process with
+    // the window is the game, so its program is the game's.
+    for (auto& game : games) {
+      const auto& program = programs.at(game.processes.front());
+      game.runtime = program.runtime;
+      game.executable = program.executable;
+      game.windows_executable = program.windows_executable;
+      game.wine_prefix = program.wine_prefix;
+    }
   }
 
   return games;

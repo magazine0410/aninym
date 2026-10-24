@@ -345,6 +345,8 @@ TEST(processesOfOneGameAreGroupedWithTheWindowFirst) {
   if (games.empty()) return;
   CHECK_EQ(games.front().processes, (std::vector<int>{201, 200}));
   CHECK_EQ(games.front().window_titles, std::vector<std::string>{"Muv-Luv"});
+  // The program is the one with the window, not the launcher that came first.
+  CHECK_EQ(games.front().executable, game);
 }
 
 TEST(windowFoundByItsClassWhenThePidIsAnotherNamespaces) {

@@ -100,7 +100,10 @@ current user's processes are read.
   - aninym only connects to the display when it has found a game. This matters
     on desktops that start Xwayland on demand.
 
-Processes of one game are grouped: by Steam app ID, otherwise by folder.
+Processes of one game are grouped: by Steam app ID, otherwise by folder. The
+process with a window comes first, and the game's `executable` is that
+process's program, so a launcher left open beside the game doesn't stand in for
+it.
 
 ## How titles are matched
 
