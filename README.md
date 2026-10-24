@@ -73,7 +73,9 @@ current user's processes are read.
     `steam.exe` and crash handlers) are left out. Wine's own are told by where
     they are, not by name, so a game's own `start.exe` or `cmd.exe` still
     counts.
-- **Steam.** Steam starts every game under its `reaper` process.
+- **Steam.** Steam starts every game under its `reaper` process. The way up
+  to it can pass through processes of other users, such as a setuid `bwrap`
+  sandbox, though only the current user's processes can be games.
   - A native game is a process below `reaper` whose executable is in
     `steamapps/common`. The Steam Linux Runtime and Proton's own programs don't
     count.

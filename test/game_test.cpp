@@ -370,3 +370,21 @@ TEST(windowFoundByItsClassWhenThePidIsAnotherNamespaces) {
   options.window_titles = false;
   CHECK(aninym::scan(options).front().window_titles.empty());
 }
+
+TEST(protonInstallPathMayEndInASlash) {
+  const FakeSystem system;
+  const auto exe = system.file("Steam/steamapps/common/Saya no Uta/Saya.exe");
+  const auto install = system.root() / "Steam" / "steamapps" / "common" / "Saya no Uta";
+  system.add({104,
+              1,
+              "Saya.exe",
+              kPreloader,
+              {"Z:" + exe.string()},
+              {"WINEPREFIX=" + system.prefix().string(),
+               "STEAM_COMPAT_INSTALL_PATH=" + install.string() + "/"}});
+
+  const auto games = aninym::scan(system.options());
+  CHECK_EQ(games.size(), std::size_t{1});
+  if (games.empty()) return;
+  CHECK_EQ(games.front().folder, install);
+}

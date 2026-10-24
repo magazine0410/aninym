@@ -47,11 +47,15 @@ struct Process {
   int ppid = 0;
   std::string comm;
   fs::path exe;
+  // Only the current user's processes can be games. The others are read for
+  // whom they started: a setuid sandbox can stand between Steam and a game, its
+  // /proc folder owned by root.
+  bool own = false;
 };
 
 std::optional<Process> readProcess(const fs::path& dir, const int pid) {
   struct stat info{};
-  if (::stat(dir.c_str(), &info) != 0 || info.st_uid != ::geteuid()) return std::nullopt;
+  if (::stat(dir.c_str(), &info) != 0) return std::nullopt;
 
   // "1234 (comm) S 1 ...": the name can hold spaces and parentheses, so it ends
   // at the last ')'.
@@ -70,8 +74,11 @@ std::optional<Process> readProcess(const fs::path& dir, const int pid) {
     std::from_chars(fields[1].data(), fields[1].data() + fields[1].size(), process.ppid);
   }
 
-  std::error_code error;
-  process.exe = fs::read_symlink(dir / "exe", error);
+  process.own = info.st_uid == ::geteuid();
+  if (process.own) {
+    std::error_code error;
+    process.exe = fs::read_symlink(dir / "exe", error);
+  }
   return process;
 }
 
@@ -244,9 +251,13 @@ bool isContainerFolder(const fs::path& dir, const fs::path& home) {
 
 fs::path gameFolder(const fs::path& executable, const Environment& environment) {
   // Proton says where Steam installed the game.
-  if (const fs::path install = get(environment, "STEAM_COMPAT_INSTALL_PATH"); !install.empty()) {
+  if (fs::path install = get(environment, "STEAM_COMPAT_INSTALL_PATH"); !install.empty()) {
+    // With a trailing slash the path names the same folder, but has no
+    // filename for the folder's name to come from.
+    install = install.lexically_normal();
+    if (!install.has_filename() && install.has_parent_path()) install = install.parent_path();
     const auto relative = executable.lexically_relative(install);
-    if (!relative.empty() && *relative.begin() != "..") return install.lexically_normal();
+    if (!relative.empty() && *relative.begin() != "..") return install;
   }
 
   // steamapps/common/<game>/...
@@ -444,6 +455,7 @@ std::vector<Game> scan(const ScanOptions& options) {
   // with the window once the windows are known.
   std::map<int, Game> programs;
   for (const auto& [pid, process] : processes) {
+    if (!process.own) continue;
     const auto dir = options.proc / std::to_string(pid);
     const auto exeName = process.exe.filename().string();
     if (exeName.starts_with("wineserver") || process.comm == "wineserver") continue;
